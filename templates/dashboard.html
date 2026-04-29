@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Proyectos — RAG Personal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Mis Proyectos</h1>
+    <p class="page-subtitle">Organiza tus documentos por áreas de conocimiento</p>
+  </div>
+  <button class="btn-primary" onclick="abrirModal('modal-nuevo-proyecto')">
+    + Nuevo proyecto
+  </button>
+</div>
+
+{% if proyectos %}
+<div class="grid-proyectos">
+  {% for p in proyectos %}
+  <div class="card-proyecto glass">
+    <div class="card-proyecto-header">
+      <div class="proyecto-icon">📂</div>
+      <div class="proyecto-meta">
+        <h3 class="proyecto-nombre">{{ p.nombre }}</h3>
+        {% if p.descripcion %}
+          <p class="proyecto-desc">{{ p.descripcion }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="proyecto-stats">
+      <span class="stat-badge">{{ stats[p.id] }} documento{{ 's' if stats[p.id] != 1 else '' }}</span>
+    </div>
+    <div class="proyecto-acciones">
+      <a href="/proyectos/{{ p.id }}" class="btn-secondary">Ver documentos</a>
+      <a href="/chat/{{ p.id }}" class="btn-chat">💬 Chat</a>
+      <form method="post" action="/proyectos/{{ p.id }}/eliminar" style="display:inline"
+            onsubmit="return confirm('¿Eliminar proyecto {{ p.nombre }}?')">
+        <button type="submit" class="btn-danger-sm">🗑</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state glass">
+  <div class="empty-icon">📭</div>
+  <h2>Sin proyectos todavía</h2>
+  <p>Crea tu primer proyecto para empezar a organizar tus documentos</p>
+  <button class="btn-primary" onclick="abrirModal('modal-nuevo-proyecto')">Crear primer proyecto</button>
+</div>
+{% endif %}
+
+<!-- Modal nuevo proyecto -->
+<div id="modal-nuevo-proyecto" class="modal-overlay" style="display:none">
+  <div class="modal glass">
+    <div class="modal-header">
+      <h2>Nuevo proyecto</h2>
+      <button class="modal-close" onclick="cerrarModal('modal-nuevo-proyecto')">✕</button>
+    </div>
+    <form method="post" action="/proyectos/nuevo">
+      <div class="field">
+        <label>Nombre del proyecto</label>
+        <input type="text" name="nombre" placeholder="Ej: Trabajo, Estudios, Personal..." required autofocus>
+      </div>
+      <div class="field">
+        <label>Descripción (opcional)</label>
+        <textarea name="descripcion" placeholder="Describe qué tipo de documentos irán aquí..." rows="3"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="cerrarModal('modal-nuevo-proyecto')">Cancelar</button>
+        <button type="submit" class="btn-primary">Crear proyecto</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

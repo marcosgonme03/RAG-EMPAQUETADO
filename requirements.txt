@@ -1,0 +1,24 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+jinja2==3.1.4
+python-multipart==0.0.9
+itsdangerous==2.2.0
+starlette==0.38.4
+# Auth (werkzeug ya incluido como dependencia de fastapi/starlette)
+
+# Vector store
+chromadb==0.5.15
+
+# LLM / embeddings
+requests==2.32.3
+groq==0.11.0
+
+# Extractors
+pdfplumber==0.11.9
+python-docx==1.1.2
+pytesseract==0.3.13
+Pillow==10.4.0
+
+# Utilities
+aiofiles==24.1.0
+python-dotenv==1.0.1

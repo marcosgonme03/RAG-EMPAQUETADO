@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Chat{% if proyecto_actual %} — {{ proyecto_actual.nombre }}{% endif %} — RAG Personal{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+
+  <!-- Sidebar proyectos -->
+  <aside class="chat-sidebar glass">
+    <div class="sidebar-title">Contexto</div>
+    <a href="/chat" class="sidebar-item {% if not proyecto_actual %}active{% endif %}">
+      <span>🌐</span> Todos los documentos
+    </a>
+    {% for p in proyectos %}
+    <a href="/chat/{{ p.id }}" class="sidebar-item {% if proyecto_actual and proyecto_actual.id == p.id %}active{% endif %}">
+      <span>📂</span> {{ p.nombre }}
+    </a>
+    {% endfor %}
+    <div class="sidebar-divider"></div>
+    <form method="post" action="/chat/limpiar">
+      {% if proyecto_actual %}
+        <input type="hidden" name="proyecto_id" value="{{ proyecto_actual.id }}">
+      {% endif %}
+      <button type="submit" class="sidebar-clear" onclick="return confirm('¿Borrar historial?')">
+        🗑 Limpiar historial
+      </button>
+    </form>
+  </aside>
+
+  <!-- Área de chat -->
+  <div class="chat-area">
+    <div class="chat-header glass">
+      <div>
+        <h2 class="chat-title">
+          {% if proyecto_actual %}
+            💬 {{ proyecto_actual.nombre }}
+          {% else %}
+            💬 Chat Global
+          {% endif %}
+        </h2>
+        <p class="chat-subtitle">
+          {% if proyecto_actual %}
+            Consultando documentos de "{{ proyecto_actual.nombre }}"
+          {% else %}
+            Consultando todos tus documentos
+          {% endif %}
+        </p>
+      </div>
+      <button class="btn-secondary btn-sm" id="btn-busqueda" onclick="toggleBusqueda()">🔍 Búsqueda</button>
+    </div>
+
+    <!-- Panel búsqueda semántica -->
+    <div id="panel-busqueda" class="busqueda-panel glass" style="display:none">
+      <div class="busqueda-row">
+        <input type="text" id="input-busqueda" placeholder="Buscar fragmentos relevantes..." class="input-search">
+        <button class="btn-primary" onclick="buscarFragmentos()">Buscar</button>
+      </div>
+      <div id="resultados-busqueda" class="resultados-busqueda"></div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="chat-messages" id="chat-messages">
+      {% if not historial %}
+      <div class="chat-welcome">
+        <div class="welcome-icon">🧠</div>
+        <h3>¿En qué puedo ayudarte?</h3>
+        <p>Hazme cualquier pregunta sobre tus documentos</p>
+      </div>
+      {% endif %}
+
+      {% for msg in historial %}
+      <div class="message message-{{ msg.rol }}">
+        <div class="message-avatar">{{ '🧑' if msg.rol == 'user' else '🤖' }}</div>
+        <div class="message-bubble">
+          <div class="message-content">{{ msg.contenido }}</div>
+          <div class="message-time">{{ msg.creado_en[11:16] }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div id="typing-indicator" class="message message-assistant" style="display:none">
+        <div class="message-avatar">🤖</div>
+        <div class="message-bubble">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-area glass">
+      <div class="chat-input-row">
+        <textarea
+          id="chat-input"
+          placeholder="Escribe tu pregunta..."
+          rows="1"
+          class="chat-textarea"
+        ></textarea>
+        <button class="btn-send" id="btn-enviar" onclick="enviarMensaje()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PROYECTO_ID = {{ proyecto_actual.id if proyecto_actual else 'null' }};
+
+// Auto-scroll al fondo
+const msgs = document.getElementById('chat-messages');
+msgs.scrollTop = msgs.scrollHeight;
+
+// Enter para enviar (Shift+Enter para salto de línea)
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    enviarMensaje();
+  }
+});
+
+// Auto-resize textarea
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+
+async function enviarMensaje() {
+  const input = document.getElementById('chat-input');
+  const consulta = input.value.trim();
+  if (!consulta) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('btn-enviar').disabled = true;
+
+  agregarMensaje('user', consulta, []);
+
+  document.getElementById('typing-indicator').style.display = 'flex';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ consulta, proyecto_id: PROYECTO_ID })
+    });
+    const data = await resp.json();
+    document.getElementById('typing-indicator').style.display = 'none';
+    agregarMensaje('assistant', data.respuesta, data.fuentes || []);
+  } catch(e) {
+    document.getElementById('typing-indicator').style.display = 'none';
+    agregarMensaje('assistant', '❌ Error al conectar con el servidor.', []);
+  }
+
+  document.getElementById('btn-enviar').disabled = false;
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function renderFuentes(fuentes) {
+  if (!fuentes || !fuentes.length) return '';
+  const badges = fuentes.map(f => {
+    const url = `/documentos/${f.documento_id}/ver#page=${f.pagina}`;
+    const label = f.nombre_original.length > 30
+      ? f.nombre_original.substring(0, 27) + '...'
+      : f.nombre_original;
+    return `<a href="${url}" target="_blank" class="fuente-badge" title="${f.nombre_original}, página ${f.pagina}">
+      📄 ${label} <span class="fuente-pagina">p.${f.pagina}</span>
+    </a>`;
+  }).join('');
+  return `<div class="fuentes-container"><span class="fuentes-label">Fuentes:</span>${badges}</div>`;
+}
+
+function agregarMensaje(rol, contenido, fuentes) {
+  const ahora = new Date().toLocaleTimeString('es', {hour:'2-digit', minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = `message message-${rol}`;
+
+  // Escapar HTML y convertir saltos de línea
+  const contenidoHtml = contenido
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+
+  div.innerHTML = `
+    <div class="message-avatar">${rol === 'user' ? '🧑' : '🤖'}</div>
+    <div class="message-bubble">
+      <div class="message-content">${contenidoHtml}</div>
+      ${rol === 'assistant' ? renderFuentes(fuentes) : ''}
+      <div class="message-time">${ahora}</div>
+    </div>
+  `;
+  const typing = document.getElementById('typing-indicator');
+  msgs.insertBefore(div, typing);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function toggleBusqueda() {
+  const panel = document.getElementById('panel-busqueda');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function buscarFragmentos() {
+  const q = document.getElementById('input-busqueda').value.trim();
+  if (!q) return;
+  const res = document.getElementById('resultados-busqueda');
+  res.innerHTML = '<div class="loading-text">Buscando...</div>';
+
+  try {
+    const resp = await fetch('/api/buscar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ consulta: q, proyecto_id: PROYECTO_ID })
+    });
+    const data = await resp.json();
+    if (data.resultados && data.resultados.length) {
+      res.innerHTML = data.resultados.map((r, i) => {
+        const url = `/documentos/${r.documento_id}/ver#page=${r.pagina}`;
+        return `<div class="fragmento">
+          <div class="frag-header">
+            <span class="frag-num">#${i+1}</span>
+            <a href="${url}" target="_blank" class="frag-fuente">📄 ${r.nombre_original} — p.${r.pagina}</a>
+          </div>
+          <p>${r.texto.replace(/\n/g, ' ')}</p>
+        </div>`;
+      }).join('');
+    } else {
+      res.innerHTML = '<p class="no-results">Sin resultados. ¿Hay documentos indexados?</p>';
+    }
+  } catch(e) {
+    res.innerHTML = '<p class="no-results">Error al buscar.</p>';
+  }
+}
+</script>
+{% endblock %}

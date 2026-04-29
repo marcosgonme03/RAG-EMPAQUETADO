@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ proyecto.nombre }} — RAG Personal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <nav class="breadcrumb">
+      <a href="/">Proyectos</a> <span>/</span> <span>{{ proyecto.nombre }}</span>
+    </nav>
+    <h1 class="page-title">{{ proyecto.nombre }}</h1>
+    {% if proyecto.descripcion %}
+      <p class="page-subtitle">{{ proyecto.descripcion }}</p>
+    {% endif %}
+  </div>
+  <a href="/chat/{{ proyecto.id }}" class="btn-primary">💬 Chat con este proyecto</a>
+</div>
+
+{% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+{% if mensaje %}
+  <div class="alert alert-success">{{ mensaje }}</div>
+{% endif %}
+
+<!-- Zona de subida -->
+<div class="upload-zone glass" id="upload-zone">
+  <form method="post" action="/proyectos/{{ proyecto.id }}/subir"
+        enctype="multipart/form-data" id="upload-form">
+    <input type="file" name="archivo" id="archivo-input" class="file-input"
+           accept=".pdf,.txt,.docx,.doc,.md,.markdown,.png,.jpg,.jpeg,.webp,.bmp,.tiff"
+           required>
+    <div class="upload-content" id="upload-content">
+      <div class="upload-icon">📤</div>
+      <p class="upload-text" id="upload-text">Arrastra archivos aquí o haz clic para seleccionar</p>
+      <p class="upload-formats">PDF · TXT · DOCX · MD · PNG · JPG</p>
+      <button type="button" class="btn-secondary" id="btn-elegir" onclick="document.getElementById('archivo-input').click()">Elegir archivo</button>
+      <button type="submit" class="btn-primary" id="btn-subir" style="display:none">Subir e indexar</button>
+    </div>
+    <div class="upload-progress" id="upload-progress" style="display:none">
+      <div class="spinner"></div>
+      <p>Subiendo y procesando con IA...</p>
+    </div>
+  </form>
+</div>
+
+<!-- Lista documentos -->
+{% if documentos %}
+<div class="docs-section">
+  <h2 class="section-title">Documentos ({{ documentos|length }})</h2>
+  <div class="docs-list">
+    {% for doc in documentos %}
+    <div class="doc-card glass">
+      <div class="doc-icon">
+        {% if doc.tipo == 'pdf' %}📄
+        {% elif doc.tipo in ('png','jpg','jpeg','webp','bmp','tiff') %}🖼
+        {% elif doc.tipo == 'docx' %}📝
+        {% elif doc.tipo == 'md' %}📋
+        {% else %}📃{% endif %}
+      </div>
+      <div class="doc-info">
+        <span class="doc-nombre">{{ doc.nombre_original }}</span>
+        <span class="doc-meta">{{ doc.creado_en[:10] }} · {{ doc.chunks }} chunks</span>
+      </div>
+      <div class="doc-estado estado-{{ doc.estado|lower }}">{{ doc.estado }}</div>
+      <div class="doc-acciones">
+        <a href="/documentos/{{ doc.id }}/ver" target="_blank" class="btn-icon" title="Ver/Descargar">👁</a>
+        <form method="post" action="/documentos/{{ doc.id }}/eliminar" style="display:inline"
+              onsubmit="return confirm('¿Eliminar este documento?')">
+          <button type="submit" class="btn-icon btn-icon-danger" title="Eliminar">🗑</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="empty-state glass" style="margin-top:2rem">
+  <div class="empty-icon">📭</div>
+  <p>Sube tu primer documento para empezar a indexar</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Drag & drop + click
+const zone = document.getElementById('upload-zone');
+const input = document.getElementById('archivo-input');
+const uploadText = document.getElementById('upload-text');
+const btnElegir = document.getElementById('btn-elegir');
+const btnSubir = document.getElementById('btn-subir');
+
+function archivoSeleccionado(nombre) {
+  uploadText.textContent = '📎 ' + nombre;
+  btnElegir.style.display = 'none';
+  btnSubir.style.display = '';
+}
+
+input.addEventListener('change', () => {
+  if (input.files.length) archivoSeleccionado(input.files[0].name);
+});
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) {
+    // Asignar los archivos al input
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    input.files = dt.files;
+    archivoSeleccionado(e.dataTransfer.files[0].name);
+  }
+});
+
+document.getElementById('upload-form').addEventListener('submit', () => {
+  document.getElementById('upload-content').style.display = 'none';
+  document.getElementById('upload-progress').style.display = 'flex';
+});
+
+// Auto-refresh si hay documentos indexando
+const indexando = document.querySelectorAll('.estado-indexando');
+if (indexando.length > 0) {
+  setTimeout(() => location.reload(), 3000);
+}
+</script>
+{% endblock %}

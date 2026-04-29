@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}RAG Personal{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  {% if request.session.get("usuario_id") %}
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="nav-icon">🧠</span>
+      <span class="nav-title">RAG Personal</span>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link {% if activo == 'dashboard' %}active{% endif %}">
+        <span>📁</span> Proyectos
+      </a>
+      <a href="/chat" class="nav-link {% if activo == 'chat' %}active{% endif %}">
+        <span>💬</span> Chat Global
+      </a>
+    </div>
+    <div class="nav-user">
+      <span class="nav-username">{{ usuario.nombre if usuario else "" }}</span>
+      <a href="/logout" class="btn-logout">Salir</a>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

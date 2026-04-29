@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar sesión — RAG Personal</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+  <div class="auth-container">
+    <div class="auth-card glass">
+      <div class="auth-logo">🧠</div>
+      <h1 class="auth-title">RAG Personal</h1>
+      <p class="auth-subtitle">Tu base de conocimiento con IA</p>
+
+      {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" class="auth-form">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="tu@email.com" required autofocus>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-primary btn-full">Entrar</button>
+      </form>
+
+      <p class="auth-footer">
+        ¿No tienes cuenta? <a href="/register">Crear cuenta</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
